@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>東京九段下→長野市 移動計画 11月11日</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Sans', Meiryo, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header .subtitle {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .header .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1em;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .header h1 {
+                font-size: 1.8em;
+            }
+        }
+        
+        #map {
+            width: 100%;
+            height: 650px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 2px solid #e0e0e0;
+        }
+        
+        .route-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+        
+        @media (max-width: 480px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .summary-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .summary-card:nth-child(2) {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .summary-card:nth-child(3) {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .card-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .card-label {
+            font-size: 0.9em;
+            opacity: 0.95;
+        }
+        
+        .route-timeline {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .route-timeline h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.6em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 35px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, #27ae60 0%, #3498db 50%, #f39c12 100%);
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .timeline-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -29px;
+            top: 20px;
+            width: 14px;
+            height: 14px;
+            background: white;
+            border: 3px solid #3498db;
+            border-radius: 50%;
+            z-index: 1;
+        }
+        
+        .timeline-item.start::before {
+            background: #27ae60;
+            border-color: #27ae60;
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
+        }
+        
+        .timeline-item.rest::before {
+            background: #e74c3c;
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.2);
+        }
+        
+        .timeline-item.end::before {
+            background: #f39c12;
+            border-color: #f39c12;
+            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.2);
+        }
+        
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .timeline-time {
+            font-weight: bold;
+            color: #3498db;
+            font-size: 1.2em;
+        }
+        
+        .timeline-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .timeline-location {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 1.05em;
+            margin-bottom: 5px;
+        }
+        
+        .timeline-description {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .ic-panel {
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #e3f2fd;
+        }
+        
+        .ic-panel h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .ic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .ic-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        
+        .ic-item:hover {
+            background: #e8f4fd;
+        }
+        
+        .ic-icon {
+            color: #2196f3;
+            margin-right: 8px;
+        }
+        
+        .legend-box {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe4b5 100%);
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .legend-box h3 {
+            color: #856404;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+        
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        @media (max-width: 480px) {
+            .legend-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .legend-marker {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .custom-marker {
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 50%;
+            width: 12px;
+            height: 12px;
+        }
+        
+        .route-note {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+        
+        .route-note h4 {
+            color: #2e7d32;
+            margin-bottom: 8px;
+        }
+        
+        .route-note p {
+            color: #555;
+            line-height: 1.6;
+            margin: 5px 0;
+        }
+
+        /* カスタムポップアップスタイル */
+        .leaflet-popup-content {
+            margin: 10px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .popup-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .popup-detail {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 東京 → 長野 移動計画</h1>
+            <div class="subtitle">
+                <div class="info-item">
+                    <span>📅</span>
+                    <span>2024年11月11日（月）</span>
+                </div>
+                <div class="info-item">
+                    <span>⏰</span>
+                    <span>9:00 出発 → 13:00 到着</span>
+                </div>
+                <div class="info-item">
+                    <span>📍</span>
+                    <span>九段下 → TOSYS中御所ビル</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div>
+                <div id="map"></div>
+                
+                <div class="legend-box">
+                    <h3>📍 地図マーカー説明</h3>
+                    <div class="legend-grid">
+                        <div class="legend-item">
+                            <div class="legend-marker" style="background: #27ae60;"></div>
+                            <span>出発地点</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-marker" style="background: #3498db;"></div>
+                            <span>IC・JCT</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-marker" style="background: #e74c3c;"></div>
+                            <span>SA・PA（休憩）</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-marker" style="background: #f39c12;"></div>
+                            <span>目的地</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="route-panel">
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <div class="card-value">225km</div>
+                        <div class="card-label">総走行距離</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="card-value">4時間</div>
+                        <div class="card-label">所要時間</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="card-value">¥5,500</div>
+                        <div class="card-label">高速料金(ETC)</div>
+                    </div>
+                </div>
+                
+                <div class="route-timeline">
+                    <h2>
+                        <span>📋</span>
+                        <span>詳細タイムライン</span>
+                    </h2>
+                    <div class="timeline">
+                        <div class="timeline-item start">
+                            <div class="timeline-header">
+                                <span class="timeline-time">9:00</span>
+                                <span class="timeline-badge">出発</span>
+                            </div>
+                            <div class="timeline-location">📍 東京・九段下</div>
+                            <div class="timeline-description">
+                                出発地点（東京都千代田区九段北）
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <span class="timeline-time">9:10</span>
+                                <span class="timeline-badge">首都高</span>
+                            </div>
+                            <div class="timeline-location">竹橋JCT</div>
+                            <div class="timeline-description">
+                                首都高速5号池袋線へ
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <span class="timeline-time">9:20</span>
+                                <span class="timeline-badge">外環道</span>
+                            </div>
+                            <div class="timeline-location">美女木JCT</div>
+                            <div class="timeline-description">
+                                東京外環自動車道へ
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <span class="timeline-time">9:30</span>
+                                <span class="timeline-badge">関越道</span>
+                            </div>
+                            <div class="timeline-location">大泉JCT</div>
+                            <div class="timeline-description">
+                                関越自動車道へ（新潟方面）
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <span class="timeline-time">10:00</span>
+                                <span class="timeline-badge">上信越道</span>
+                            </div>
+                            <div class="timeline-location">藤岡JCT</div>
+                            <div class="timeline-description">
+                                上信越自動車道へ（長野方面）
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item rest">
+                            <div class="timeline-header">
+                                <span class="timeline-time">11:30-12:00</span>
+                                <span class="timeline-badge">🍴 昼食</span>
+                            </div>
+                            <div class="timeline-location">横川SA（上り）</div>
+                            <div class="timeline-description">
+                                名物「峠の釜めし」やレストラン完備<br>
+                                残り約60km（50分）
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <span class="timeline-time">12:15</span>
+                                <span class="timeline-badge">通過</span>
+                            </div>
+                            <div class="timeline-location">松井田妙義IC</div>
+                            <div class="timeline-description">
+                                群馬県から長野県へ
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <span class="timeline-time">12:30</span>
+                                <span class="timeline-badge">長野道</span>
+                            </div>
+                            <div class="timeline-location">更埴JCT</div>
+                            <div class="timeline-description">
+                                長野自動車道へ
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <span class="timeline-time">12:45</span>
+                                <span class="timeline-badge">出口</span>
+                            </div>
+                            <div class="timeline-location">長野IC</div>
+                            <div class="timeline-description">
+                                高速道路を降りて一般道へ（約6km）
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item end">
+                            <div class="timeline-header">
+                                <span class="timeline-time">13:00</span>
+                                <span class="timeline-badge">到着</span>
+                            </div>
+                            <div class="timeline-location">📍 TOSYS中御所ビル</div>
+                            <div class="timeline-description">
+                                長野県長野市中御所3-13-7<br>
+                                目的地到着
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ic-panel">
+                    <h3>
+                        <span>🛣️</span>
+                        <span>通過IC・JCT一覧</span>
+                    </h3>
+                    <div class="ic-grid">
+                        <div class="ic-item">
+                            <span class="ic-icon">▶</span>
+                            <span>竹橋JCT（首都高）</span>
+                        </div>
+                        <div class="ic-item">
+                            <span class="ic-icon">▶</span>
+                            <span>美女木JCT（外環道）</span>
+                        </div>
+                        <div class="ic-item">
+                            <span class="ic-icon">▶</span>
+                            <span>大泉JCT（関越道）</span>
+                        </div>
+                        <div class="ic-item">
+                            <span class="ic-icon">▶</span>
+                            <span>藤岡JCT（上信越道）</span>
+                        </div>
+                        <div class="ic-item">
+                            <span class="ic-icon">▶</span>
+                            <span>松井田妙義IC</span>
+                        </div>
+                        <div class="ic-item">
+                            <span class="ic-icon">▶</span>
+                            <span>更埴JCT（長野道）</span>
+                        </div>
+                        <div class="ic-item">
+                            <span class="ic-icon">▶</span>
+                            <span>長野IC（出口）</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="route-note">
+                    <h4>💡 ルート情報・注意事項</h4>
+                    <p>• 土曜日のため、通常より渋滞は少ない見込み</p>
+                    <p>• 横川SAの代替：佐久平PA、東部湯の丸SA</p>
+                    <p>• 事故渋滞時：碓氷軽井沢ICから国道18号も可</p>
+                    <p>• TOSYS中御所ビル周辺にコインパーキング有</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // 地図の初期化
+        const map = L.map('map').setView([36.2, 138.8], 8);
+        
+        // OpenStreetMapタイルレイヤーを追加
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // カスタムアイコンの定義
+        const greenIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIj48cGF0aCBmaWxsPSIjMjdhZTYwIiBkPSJNMTIuNSAwQzUuNiAwIDAgNS42IDAgMTIuNWMwIDIuOSAxIDUuNiAyLjcgNy43TDEyLjUgNDFsMkuOC0yMC44YzEuNy0yLjEgMi43LTQuOCAyLjctNy43QzI1IDUuNiAxOS40IDAgMTIuNSAweiIvPjxjaXJjbGUgY3g9IjEyLjUiIGN5PSIxMi41IiByPSI0LjUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+        
+        const blueIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIj48cGF0aCBmaWxsPSIjMzQ5OGRiIiBkPSJNMTIuNSAwQzUuNiAwIDAgNS42IDAgMTIuNWMwIDIuOSAxIDUuNiAyLjcgNy43TDEyLjUgNDFsMkuOC0yMC44YzEuNy0yLjEgMi43LTQuOCAyLjctNy43QzI1IDUuNiAxOS40IDAgMTIuNSAweiIvPjxjaXJjbGUgY3g9IjEyLjUiIGN5PSIxMi41IiByPSI0LjUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+        
+        const redIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIj48cGF0aCBmaWxsPSIjZTc0YzNjIiBkPSJNMTIuNSAwQzUuNiAwIDAgNS42IDAgMTIuNWMwIDIuOSAxIDUuNiAyLjcgNy43TDEyLjUgNDFsMkuOC0yMC44YzEuNy0yLjEgMi43LTQuOCAyLjctNy43QzI1IDUuNiAxOS40IDAgMTIuNSAweiIvPjxjaXJjbGUgY3g9IjEyLjUiIGN5PSIxMi41IiByPSI0LjUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+        
+        const orangeIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIj48cGF0aCBmaWxsPSIjZjM5YzEyIiBkPSJNMTIuNSAwQzUuNiAwIDAgNS42IDAgMTIuNWMwIDIuOSAxIDUuNiAyLjcgNy43TDEyLjUgNDFsMkuOC0yMC44YzEuNy0yLjEgMi43LTQuOCAyLjctNy43QzI1IDUuNiAxOS40IDAgMTIuNSAweiIvPjxjaXJjbGUgY3g9IjEyLjUiIGN5PSIxMi41IiByPSI0LjUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+        
+        // マーカーの配置
+        const markers = [
+            {
+                lat: 35.6938,
+                lng: 139.7507,
+                title: '出発: 東京九段下',
+                icon: greenIcon,
+                popup: '<div class="popup-title">🚗 出発地点</div><div class="popup-detail">東京都千代田区九段北<br>9:00 出発予定</div>'
+            },
+            {
+                lat: 35.7742,
+                lng: 139.6045,
+                title: '大泉JCT',
+                icon: blueIcon,
+                popup: '<div class="popup-title">大泉JCT</div><div class="popup-detail">関越自動車道へ<br>通過予定: 9:30</div>'
+            },
+            {
+                lat: 36.2341,
+                lng: 139.1337,
+                title: '藤岡JCT',
+                icon: blueIcon,
+                popup: '<div class="popup-title">藤岡JCT</div><div class="popup-detail">上信越自動車道へ<br>通過予定: 10:00</div>'
+            },
+            {
+                lat: 36.3267,
+                lng: 138.6467,
+                title: '横川SA',
+                icon: redIcon,
+                popup: '<div class="popup-title">🍴 横川SA（上り）</div><div class="popup-detail">昼食休憩 30分<br>名物: 峠の釜めし<br>11:30-12:00</div>'
+            },
+            {
+                lat: 36.5365,
+                lng: 138.1280,
+                title: '更埴JCT',
+                icon: blueIcon,
+                popup: '<div class="popup-title">更埴JCT</div><div class="popup-detail">長野自動車道へ<br>通過予定: 12:30</div>'
+            },
+            {
+                lat: 36.6769,
+                lng: 138.2126,
+                title: '長野IC',
+                icon: blueIcon,
+                popup: '<div class="popup-title">長野IC</div><div class="popup-detail">高速出口<br>通過予定: 12:45</div>'
+            },
+            {
+                lat: 36.6425,
+                lng: 138.1892,
+                title: '到着: TOSYS中御所ビル',
+                icon: orangeIcon,
+                popup: '<div class="popup-title">📍 目的地</div><div class="popup-detail">TOSYS中御所ビル<br>長野市中御所3-13-7<br>到着予定: 13:00</div>'
+            }
+        ];
+        
+        // マーカーを地図に追加
+        markers.forEach(marker => {
+            L.marker([marker.lat, marker.lng], {icon: marker.icon})
+                .addTo(map)
+                .bindPopup(marker.popup);
+        });
+        
+        // ルートライン（簡易版）
+        const routeCoordinates = [
+            [35.6938, 139.7507], // 九段下
+            [35.7742, 139.6045], // 大泉JCT
+            [36.2341, 139.1337], // 藤岡JCT
+            [36.3267, 138.6467], // 横川SA
+            [36.5365, 138.1280], // 更埴JCT
+            [36.6769, 138.2126], // 長野IC
+            [36.6425, 138.1892]  // TOSYS中御所ビル
+        ];
+        
+        // ポリラインでルートを描画
+        const routeLine = L.polyline(routeCoordinates, {
+            color: '#3498db',
+            weight: 4,
+            opacity: 0.7,
+            smoothFactor: 1
+        }).addTo(map);
+        
+        // 地図をルート全体が見えるように調整
+        map.fitBounds(routeLine.getBounds().pad(0.1));
+        
+        // タイムラインアイテムのクリックイベント
+        document.querySelectorAll('.timeline-item').forEach((item, index) => {
+            item.addEventListener('click', () => {
+                if (index < markers.length) {
+                    map.setView([markers[index].lat, markers[index].lng], 12);
+                    // マーカーのポップアップを開く
+                    map.eachLayer(layer => {
+                        if (layer instanceof L.Marker) {
+                            const latLng = layer.getLatLng();
+                            if (latLng.lat === markers[index].lat && latLng.lng === markers[index].lng) {
+                                layer.openPopup();
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
